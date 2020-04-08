@@ -1,0 +1,13 @@
+<!DOCTYPE=html>
+<html>
+<head>
+    <title>
+        History surveillance report
+    </title>
+</head>
+<body>
+    {% for hist in imgs %}
+    <img src="{{url_for('static', filename=hist)}}" width="100" alt="{{hist}}">
+    {% endfor %}
+</body>
+</html>
