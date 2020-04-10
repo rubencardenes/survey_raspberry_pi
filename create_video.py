@@ -25,10 +25,15 @@ def make_video(image_paths, vid_name, video_fps=20):
     fourcc = cv2.VideoWriter_fourcc(*'avc1')
 
     video = cv2.VideoWriter(vid_name, fourcc, video_fps, (w, h))
+    i = 1
+    max_state = len(image_paths)
     for img_path in tqdm(image_paths):
         img = cv2.imread(img_path)
-        cv2.putText(img,os.path.basename(img_path), (0, 10), cv2.FONT_HERSHEY_DUPLEX, 0.5, (255, 255, 255))
+        # cv2.putText(img,os.path.basename(img_path), (0, 10), cv2.FONT_HERSHEY_DUPLEX, 0.5, (255, 255, 255))
         video.write(img)
+        progress_state = int(100*i/max_state)
+        yield "data:" + str(progress_state) + "\n\n"
+        i += 1
     video.release()
     print('finished ' + vid_name)
 

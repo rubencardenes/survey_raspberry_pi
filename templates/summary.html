@@ -6,8 +6,13 @@
     </title>
 </head>
 <body>
-    {% for hist in imgs %}
-    <img src="{{url_for('static', filename=hist)}}" width="100" alt="{{hist}}">
+    {% for day in days %}
+    <h2> Day {{day}} </h2>
+    {% for im in imgs %}
+     {% if day is in(im) %}
+    <img src="{{url_for('static', filename=im)}}" width="200" alt="{{im}}">
+     {% endif %}
+    {% endfor %}
     {% endfor %}
 </body>
 </html>

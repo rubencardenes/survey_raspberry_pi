@@ -1,7 +1,7 @@
 # ###################################################################
 # Ruben Cardenes -- Apr 2020
 #
-# File:        start.py
+# File:        start_flask.py
 # Description: This scripts starts a web app in the a machine for video surveillance
 #              Users can connect to the video streaming using a web browser.
 #
@@ -50,7 +50,7 @@ class VideoSendThread(Thread):
     # This class inherits from Thread, which means that will run on a separate Thread
     # whenever called, it starts the run method
 
-    def __init__(self, container, camera_resolution=(640, 480), camera_type="USB"):
+    def __init__(self, container, min_area=1000, delay=2.0, camera_resolution=(640, 480), camera_type="USB"):
         Thread.__init__(self)
         # create socket and bind host
         self.camera_resolution = camera_resolution
@@ -61,11 +61,14 @@ class VideoSendThread(Thread):
         self.container = container
         self.vid = None
         self.camera_type = camera_type
+        self.min_area = min_area
+        self.delay = delay
 
     def save_frame(self, frame):
         date_time = time.strftime("%m_%d_%Y-%H:%M:%S")
         self.output_name = os.path.join("./static/images", date_time + ".jpg")
         self.save_time = time.time()
+        cv2.putText(frame, os.path.basename(self.output_name), (0, 10), cv2.FONT_HERSHEY_DUPLEX, 0.5, (255, 255, 255))
         cv2.imwrite(self.output_name, frame)
         cv2.putText(frame, "Saving frame", (0, 10), cv2.FONT_HERSHEY_DUPLEX, 0.5, (0, 0, 255), 1)
 
@@ -82,9 +85,9 @@ class VideoSendThread(Thread):
                 cv2.rectangle(frame, (b[0], b[1]), (b[2], b[3]),
                               (0, 0, 255), 1)
                 total_area += (b[2] - b[0]) * (b[3] - b[1])
-            if total_area > 500:
+            if total_area > self.min_area:
                 # print("boxes: ", md_boxes)
-                if time.time() - self.save_time > 3:
+                if time.time() - self.save_time > self.delay:
                     self.save_frame(frame)
 
     def run_pi_camera(self):
@@ -153,26 +156,30 @@ def index():
 @app.route("/summary")
 def summary():
     imgs = ["images/" + file for file in os.listdir('static/images')]
-    imgs.sort()
-    print(imgs)
+    imgs.sort(reverse=True)
+    days = [x[7:17] for x in imgs]
+    days = list(set(days))
+    days.sort(reverse=True)
     # return the rendered template
-    return render_template("summary.html", imgs=imgs)
+    return render_template("summary.html", days=days, imgs=imgs)
 
 
-@app.route("/make_summary")
-def make_summary():
-    day = time.strftime("%m_%d_%Y")
-    imgs = ["static/images/" + file for file in os.listdir('static/images') if day in file]
-    imgs.sort()
-    make_video(imgs, f"static/video_summary/{day}.mp4")
-    # return the rendered template
-    return render_template("video_summary.html")
+# @app.route("/make_summary")
+# def make_summary():
+#     day = time.strftime("%m_%d_%Y")
+#     imgs = ["static/images/" + file for file in os.listdir('static/images') if day in file]
+#     imgs.sort()
+#     make_video(imgs, f"static/video_summary/{day}.mp4")
+#     vids = ["video_summary/" + file for file in os.listdir('static/video_summary')]
+#     vids.sort(reverse=True)
+#     # return the rendered template
+#     return render_template("video_summary.html", vids=vids)
 
 
 @app.route("/video_summary")
 def video_summary():
     vids = ["video_summary/" + file for file in os.listdir('static/video_summary')]
-    vids.sort()
+    vids.sort(reverse=True)
     # return the rendered template
     return render_template("video_summary.html", vids=vids)
 
@@ -184,23 +191,16 @@ def video_feed():
     return Response(container.generate_frames(),
                     mimetype="multipart/x-mixed-replace; boundary=frame")
 
-
-@app.route('/do_progress')
+@app.route('/make_summary')
 def do_progress():
     return render_template('progress.html')
 
-
 @app.route('/progress')
 def progress():
-    def generate():
-        x = 0
-
-        while x <= 100:
-            yield "data:" + str(x) + "\n\n"
-            x = x + 10
-            time.sleep(0.5)
-
-    return Response(generate(), mimetype='text/event-stream')
+    day = time.strftime("%m_%d_%Y")
+    imgs = ["static/images/" + file for file in os.listdir('static/images') if day in file]
+    imgs.sort()
+    return Response(make_video(imgs, f"static/video_summary/{day}.mp4"), mimetype='text/event-stream')
 
 
 if __name__ == "__main__":
@@ -221,6 +221,16 @@ if __name__ == "__main__":
                         default='USB',
                         help='use piCamera',
                         required=False)
+    parser.add_argument('--area', type=int,
+                        dest='area',
+                        default=1000,
+                        help='minimum detected area to save a frame',
+                        required=False)
+    parser.add_argument('--delay', type=float,
+                        dest='delay',
+                        default=2.0,
+                        help='minimum delay to record again',
+                        required=False)
     args = vars(parser.parse_args())
 
     host = args['host']
@@ -228,7 +238,7 @@ if __name__ == "__main__":
 
     threads = []
 
-    newthread = VideoSendThread(container, camera_type=args['camera_type'])
+    newthread = VideoSendThread(container, min_area=args['area'], delay=args['delay'], camera_type=args['camera_type'])
     newthread.start()
     threads.append(newthread)
 
