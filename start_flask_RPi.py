@@ -52,7 +52,7 @@ class VideoSendThread(Thread):
     # This class inherits from Thread, which means that will run on a separate Thread
     # whenever called, it starts the run method
 
-    def __init__(self, container, camera_resolution=(640, 480)):
+    def __init__(self, container,  min_area=1000, delay=2.0, camera_resolution=(640, 480)):
         Thread.__init__(self)
         # create socket and bind host
         self.camera_resolution = camera_resolution
@@ -62,13 +62,34 @@ class VideoSendThread(Thread):
         self.save_time = 0
         self.container = container
         self.vid = cv2.VideoCapture(0)
+        self.min_area = min_area
+        self.delay = delay
 
     def save_frame(self, frame):
         date_time = time.strftime("%m_%d_%Y-%H:%M:%S")
         self.output_name = os.path.join("./static/images", date_time + ".jpg")
         self.save_time = time.time()
+        cv2.putText(frame, os.path.basename(self.output_name), (0, 10), cv2.FONT_HERSHEY_DUPLEX, 0.5, (255, 255, 255))
         cv2.imwrite(self.output_name, frame)
         cv2.putText(frame, "Saving frame", (0, 10), cv2.FONT_HERSHEY_DUPLEX, 0.5, (0, 0, 255), 1)
+
+    def run_motion_detection(self, frame):
+        # MOTION DETECTION
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        gray_blur = cv2.GaussianBlur(gray, (7, 7), 0)
+        self.md.update(gray_blur)
+        thresh = np.zeros(frame.shape)
+        thresh, md_boxes = self.md.detect(gray_blur)
+        if md_boxes is not None:
+            total_area = 0
+            for b in md_boxes:
+                cv2.rectangle(frame, (b[0], b[1]), (b[2], b[3]),
+                              (0, 0, 255), 1)
+                total_area += (b[2] - b[0]) * (b[3] - b[1])
+            if total_area > self.min_area:
+                # print("boxes: ", md_boxes)
+                if time.time() - self.save_time > self.delay:
+                    self.save_frame(frame)
 
     def run(self):
         try:
@@ -87,24 +108,9 @@ class VideoSendThread(Thread):
                     rawCapture.truncate(0)
 
                     # MOTION DETECTION
-                    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                    gray_blur = cv2.GaussianBlur(gray, (7, 7), 0)
-                    thresh = np.zeros(frame.shape)
-                    self.md.update(gray_blur)
-                    thresh, md_boxes = self.md.detect(gray_blur)
-                    if md_boxes is not None:
-                        total_area = 0
-                        for b in md_boxes:
-                            cv2.rectangle(frame, (b[0], b[1]), (b[2], b[3]),
-                                          (0, 0, 255), 1)
-                            total_area += (b[2] - b[0])*(b[3] - b[1])
-                        if total_area > 500:
-                            # print("boxes: ", md_boxes)
-                            if time.time() - self.save_time > 3:
-                                self.save_frame(frame)
+                    self.run_motion_detection(frame)
 
                     with lock:
-                        # print("sending frame")
                         self.container.frame = frame
 
         finally:
@@ -169,6 +175,17 @@ if __name__ == "__main__":
                         default='0.0.0.0',
                         help='destination host name or ip',
                         required=False)
+    parser.add_argument('--area', type=int,
+                        dest='area',
+                        default=1000,
+                        help='minimum detected area to save a frame',
+                        required=False)
+    parser.add_argument('--delay', type=float,
+                        dest='delay',
+                        default=2.0,
+                        help='minimum delay to save a frame again',
+                        required=False)
+
     args = vars(parser.parse_args())
 
     host = args['host']
@@ -176,7 +193,7 @@ if __name__ == "__main__":
 
     threads = []
 
-    newthread = VideoSendThread(container)
+    newthread = VideoSendThread(container, min_area=args['area'], delay=args['delay'])
     newthread.start()
     threads.append(newthread)
 

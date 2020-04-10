@@ -229,7 +229,7 @@ if __name__ == "__main__":
     parser.add_argument('--delay', type=float,
                         dest='delay',
                         default=2.0,
-                        help='minimum delay to record again',
+                        help='minimum delay to save a frame again',
                         required=False)
     args = vars(parser.parse_args())
 

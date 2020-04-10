@@ -20,7 +20,7 @@ The web application allows to see the streaming video a summary of the moving pi
 - [x] Video summary creation from saved images 
 - [ ] People detection (for a future version)
 
-![image](example.jpg)
+![image](example.png)
 
 ## Requirements
 
@@ -66,12 +66,15 @@ Notes: the main script usage is the following
 
 ```
 usage: start_flask.py [-h] [--port PORT] [--host HOST] [-p CAMERA_TYPE]
+                      [--area AREA] [--delay DELAY]
 
 optional arguments:
   -h, --help      show this help message and exit
   --port PORT     socket port
   --host HOST     destination host name or ip
   -p CAMERA_TYPE  use piCamera
+  --area AREA     minimum detected area to save a frame
+  --delay DELAY   minimum delay to save a frame again
 ```
 ## Extra
 
