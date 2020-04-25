@@ -18,7 +18,7 @@ The web application allows to see the streaming video a summary of the moving pi
 - [x] Direct streaming scripts  
 - [x] Picture gallery summary
 - [x] Video summary creation from saved images 
-- [ ] People detection (for a future version)
+- [x] People detection 
 
 ![image](example.png)
 

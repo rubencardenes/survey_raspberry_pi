@@ -21,6 +21,7 @@ from flask import Response
 from flask import Flask
 from flask import render_template
 from create_video import make_video
+from SSD_Detector import SSDDetector, read_class_names, draw_pretty_bbox, read_class_colors
 
 
 class MemorySharing():
@@ -83,10 +84,14 @@ class VideoSendThread(Thread):
         if md_boxes is not None:
             total_area = 0
             for b in md_boxes:
-                cv2.rectangle(frame, (b[0], b[1]), (b[2], b[3]),
-                              (0, 0, 255), 1)
+                # cv2.rectangle(frame, (b[0], b[1]), (b[2], b[3]),
+                #              (0, 0, 255), 1)
                 total_area += (b[2] - b[0]) * (b[3] - b[1])
             if total_area > self.min_area:
+                # Start detecting with AI
+                boxes = self.SSD.predict_image(frame)
+                frame = draw_pretty_bbox(frame, boxes, show_label=True,
+                                         colors=self.colors, classes=self.classes)
                 # print("boxes: ", md_boxes)
                 if time.time() - self.save_time > self.delay:
                     self.save_frame(frame)

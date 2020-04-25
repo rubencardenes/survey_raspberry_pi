@@ -19,6 +19,7 @@ from flask import Response
 from flask import Flask
 from flask import render_template
 from create_video import make_video
+from SSD_Detector import SSDDetector, read_class_names, draw_pretty_bbox, read_class_colors
 
 
 class MemorySharing():
@@ -63,6 +64,16 @@ class VideoSendThread(Thread):
         self.camera_type = camera_type
         self.min_area = min_area
         self.delay = delay
+        self.classes = read_class_names("./data/coco.names")
+        class_color_filename = './data/colors.yaml'
+        self.colors, _ = read_class_colors(class_color_filename)
+        cfg = {"INPUT_SIZE": 600,
+               "CLASSES": "./data/coco.names",
+               "SCORE_THRESHOLD": 0.3,
+               "IOU_THRESHOLD": 0.1,
+               "MODEL_PB_FILE": "./data/ssd_mobilenet_v2_coco_graph.pb"
+               }
+        self.SSD = SSDDetector(cfg)
 
     def save_frame(self, frame):
         date_time = time.strftime("%m_%d_%Y-%H:%M:%S")
@@ -82,10 +93,14 @@ class VideoSendThread(Thread):
         if md_boxes is not None:
             total_area = 0
             for b in md_boxes:
-                cv2.rectangle(frame, (b[0], b[1]), (b[2], b[3]),
-                              (0, 0, 255), 1)
+                #cv2.rectangle(frame, (b[0], b[1]), (b[2], b[3]),
+                #              (0, 0, 255), 1)
                 total_area += (b[2] - b[0]) * (b[3] - b[1])
             if total_area > self.min_area:
+                # Start detecting with AI
+                boxes = self.SSD.predict_image(frame)
+                frame = draw_pretty_bbox(frame, boxes, show_label=True,
+                                            colors=self.colors, classes=self.classes)
                 # print("boxes: ", md_boxes)
                 if time.time() - self.save_time > self.delay:
                     self.save_frame(frame)
@@ -162,18 +177,6 @@ def summary():
     days.sort(reverse=True)
     # return the rendered template
     return render_template("summary.html", days=days, imgs=imgs)
-
-
-# @app.route("/make_summary")
-# def make_summary():
-#     day = time.strftime("%m_%d_%Y")
-#     imgs = ["static/images/" + file for file in os.listdir('static/images') if day in file]
-#     imgs.sort()
-#     make_video(imgs, f"static/video_summary/{day}.mp4")
-#     vids = ["video_summary/" + file for file in os.listdir('static/video_summary')]
-#     vids.sort(reverse=True)
-#     # return the rendered template
-#     return render_template("video_summary.html", vids=vids)
 
 
 @app.route("/video_summary")
