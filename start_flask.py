@@ -19,8 +19,7 @@ from flask import Response
 from flask import Flask
 from flask import render_template
 from create_video import make_video
-from SSD_Detector import SSDDetector, read_class_names, draw_pretty_bbox, read_class_colors
-
+from ObjectDetectorTFLITE import ObjectDetectorTFLITE, read_class_colors, scale_boxes, read_class_names, draw_bbox
 
 class MemorySharing():
 
@@ -51,7 +50,7 @@ class VideoSendThread(Thread):
     # This class inherits from Thread, which means that will run on a separate Thread
     # whenever called, it starts the run method
 
-    def __init__(self, container, min_area=1000, delay=2.0, camera_resolution=(640, 480), camera_type="USB"):
+    def __init__(self, container, min_area=1000, delay=1.0, camera_resolution=(640, 480), camera_type="USB"):
         Thread.__init__(self)
         # create socket and bind host
         self.camera_resolution = camera_resolution
@@ -67,13 +66,12 @@ class VideoSendThread(Thread):
         self.classes = read_class_names("./data/coco.names")
         class_color_filename = './data/colors.yaml'
         self.colors, _ = read_class_colors(class_color_filename)
-        cfg = {"INPUT_SIZE": 600,
-               "CLASSES": "./data/coco.names",
+        cfg = {"CLASSES": "./data/coco.names",
                "SCORE_THRESHOLD": 0.3,
                "IOU_THRESHOLD": 0.1,
-               "MODEL_PB_FILE": "./data/ssd_mobilenet_v2_coco_graph.pb"
+               "MODEL_PB_FILE": "./data/ssd-mobilenet-v2_uint8.tflite"
                }
-        self.SSD = SSDDetector(cfg)
+        self.SSD_lite = ObjectDetectorTFLITE(cfg)
 
     def save_frame(self, frame):
         date_time = time.strftime("%m_%d_%Y-%H:%M:%S")
@@ -82,6 +80,15 @@ class VideoSendThread(Thread):
         cv2.putText(frame, os.path.basename(self.output_name), (0, 10), cv2.FONT_HERSHEY_DUPLEX, 0.5, (255, 255, 255))
         cv2.imwrite(self.output_name, frame)
         cv2.putText(frame, "Saving frame", (0, 10), cv2.FONT_HERSHEY_DUPLEX, 0.5, (0, 0, 255), 1)
+
+    def run_ssd_lite_model(self, frame):
+        image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        boxes, scores, classes_out = self.SSD_lite.predict_image(image)
+        h, w = image.shape[:2]
+        boxes_scaled = scale_boxes(boxes[0], w, h)
+        new_boxes = [[b[0], b[1], b[2], b[3], s, cl] for b, s, cl in zip(boxes_scaled, scores[0], classes_out[0]) if
+                     s > 0.3]
+        return new_boxes
 
     def run_motion_detection(self, frame):
         # MOTION DETECTION
@@ -98,11 +105,12 @@ class VideoSendThread(Thread):
                 total_area += (b[2] - b[0]) * (b[3] - b[1])
             if total_area > self.min_area:
                 # Start detecting with AI
-                boxes = self.SSD.predict_image(frame)
-                frame = draw_pretty_bbox(frame, boxes, show_label=True,
+                boxes = self.run_ssd_lite_model(frame)
+                frame = draw_bbox(frame, boxes, show_label=True,
                                             colors=self.colors, classes=self.classes)
-                # print("boxes: ", md_boxes)
-                if time.time() - self.save_time > self.delay:
+
+                num_relevant_objects = len([c[5] for c in boxes if c[5] == 0 or c[5] == 15 or c[5] == 16])
+                if time.time() - self.save_time > self.delay and num_relevant_objects > 0:
                     self.save_frame(frame)
 
     def run_pi_camera(self):
@@ -231,7 +239,7 @@ if __name__ == "__main__":
                         required=False)
     parser.add_argument('--delay', type=float,
                         dest='delay',
-                        default=2.0,
+                        default=1.0,
                         help='minimum delay to save a frame again',
                         required=False)
     args = vars(parser.parse_args())

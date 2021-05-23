@@ -32,6 +32,8 @@ imutils==0.5.3
 numpy==1.18.2
 opencv-python>=3.4.6.27
 tqdm==4.45.0
+PyYAML==5.3.1
+tensorflow-gpu==1.15.2
 ```
 
 ## Instructions 
@@ -44,6 +46,11 @@ git clone https://github.com/rubencardenes/survey_raspberry_pi.git
 2. Install python requirements (preferably in a virtual environment) 
 ```
 pip3 install -r requirements.txt 
+```
+
+For Raspberry PI, follow the instructions here for tensorflow installation:
+```
+https://qengineering.eu/install-tensorflow-1.15.2-on-raspberry-pi-4.html
 ```
 
 3. Folder structure 

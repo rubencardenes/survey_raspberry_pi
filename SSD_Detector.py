@@ -37,6 +37,13 @@ def read_class_colors(class_colors_file_name):
 
     return colors, colors_secondary
 
+def scale_boxes(boxes, w, h):
+    out_boxes = []
+    for b in boxes:
+        b_scale = [b[1]*w, b[0]*h, b[3]*w, b[2]*h]
+        b_scale.extend(b[4:])
+        out_boxes.append(b_scale)
+    return out_boxes
 
 def draw_pretty_bbox(image, bboxes, classes=None,
                      show_label=True,
