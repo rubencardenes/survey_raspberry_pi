@@ -99,5 +99,5 @@ This is opened with a MIT License, so use it as you want.
 ## Acknowledgements
 
 Some code for Flask integration and to do motion detection are taken from the great PyImageSearch blog by Adrian Rosebrock. 
-Here some extra code  
+
 
