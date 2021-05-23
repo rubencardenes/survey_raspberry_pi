@@ -54,7 +54,7 @@ class VideoSendThread(Thread):
     # This class inherits from Thread, which means that will run on a separate Thread
     # whenever called, it starts the run method
 
-    def __init__(self, container,  min_area=1000, delay=2.0, camera_resolution=(640, 480)):
+    def __init__(self, container,  min_area=1000, delay=2.0, camera_resolution=(640, 480), AI=False):
         Thread.__init__(self)
         # create socket and bind host
         self.camera_resolution = camera_resolution
@@ -66,6 +66,7 @@ class VideoSendThread(Thread):
         self.vid = cv2.VideoCapture(0)
         self.min_area = min_area
         self.delay = delay
+        self.AI = AI
         self.classes = read_class_names("./data/coco.names")
         class_color_filename = './data/colors.yaml'
         self.colors, _ = read_class_colors(class_color_filename)
@@ -106,7 +107,7 @@ class VideoSendThread(Thread):
                 # cv2.rectangle(frame, (b[0], b[1]), (b[2], b[3]),
                 #              (0, 0, 255), 1)
                 total_area += (b[2] - b[0]) * (b[3] - b[1])
-            if total_area > self.min_area:
+            if total_area > self.min_area and self.AI:
                 # Start detecting with AI
                 boxes = self.run_ssd_lite_model(frame)
                 frame = draw_bbox(frame, boxes, show_label=True,
@@ -163,7 +164,7 @@ def summary():
     # return the rendered template
     return render_template("summary.html", days=days, imgs=imgs)
 
-@app.route("/make_summary")
+@app.route("/make_summary_old")
 def make_summary():
     day = time.strftime("%m_%d_%Y")
     imgs = ["static/images/" + file for file in os.listdir('static/images') if day in file]
@@ -172,11 +173,21 @@ def make_summary():
     # return the rendered template
     return render_template("video_summary.html")
 
+@app.route('/make_summary')
+def do_progress():
+    return render_template('progress.html')
+
+@app.route('/progress')
+def progress():
+    day = time.strftime("%m_%d_%Y")
+    imgs = ["static/images/" + file for file in os.listdir('static/images') if day in file]
+    imgs.sort()
+    return Response(make_video(imgs, f"static/video_summary/{day}.mp4"), mimetype='text/event-stream')
 
 @app.route("/video_summary")
 def video_summary():
     vids = ["video_summary/" + file for file in os.listdir('static/video_summary')]
-    vids.sort()
+    vids.sort(reverse=True)
     # return the rendered template
     return render_template("video_summary.html", vids=vids)
 
