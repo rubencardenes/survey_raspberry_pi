@@ -156,10 +156,12 @@ def index():
 @app.route("/summary")
 def summary():
     imgs = ["images/" + file for file in os.listdir('static/images')]
-    imgs.sort()
+    imgs.sort(reverse=True)
+    days = [x[7:17] for x in imgs]
+    days = list(set(days))
+    days.sort(reverse=True)
     # return the rendered template
-    return render_template("summary.html", imgs=imgs)
-
+    return render_template("summary.html", days=days, imgs=imgs)
 
 @app.route("/make_summary")
 def make_summary():

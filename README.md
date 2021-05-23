@@ -64,6 +64,12 @@ python3 start_flask.py &
 ```
 The & at the end of the is not mandatory, but it makes the script to run on the background. 
 
+If you are using Raspberry PI, use this instead:
+```
+python3 start_flask_RPi.py &
+```
+
+
 5. Connect to the server from a browser:
 ```
 http://localhost:8887
