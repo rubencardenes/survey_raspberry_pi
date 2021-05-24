@@ -50,7 +50,8 @@ class VideoSendThread(Thread):
     # This class inherits from Thread, which means that will run on a separate Thread
     # whenever called, it starts the run method
 
-    def __init__(self, container, min_area=1000, delay=1.0, camera_resolution=(640, 480), camera_type="USB"):
+    def __init__(self, container, min_area=1000, delay=1.0, camera_resolution=(640, 480), camera_type="USB",
+                 AI=False):
         Thread.__init__(self)
         # create socket and bind host
         self.camera_resolution = camera_resolution
@@ -63,6 +64,7 @@ class VideoSendThread(Thread):
         self.camera_type = camera_type
         self.min_area = min_area
         self.delay = delay
+        self.AI = AI
         self.classes = read_class_names("./data/coco.names")
         class_color_filename = './data/colors.yaml'
         self.colors, _ = read_class_colors(class_color_filename)
@@ -104,14 +106,18 @@ class VideoSendThread(Thread):
                 #              (0, 0, 255), 1)
                 total_area += (b[2] - b[0]) * (b[3] - b[1])
             if total_area > self.min_area:
-                # Start detecting with AI
-                boxes = self.run_ssd_lite_model(frame)
-                frame = draw_bbox(frame, boxes, show_label=True,
-                                            colors=self.colors, classes=self.classes)
+                if self.AI:
+                    # Start detecting with AI
+                    boxes = self.run_ssd_lite_model(frame)
+                    frame = draw_bbox(frame, boxes, show_label=True,
+                                                colors=self.colors, classes=self.classes)
 
-                num_relevant_objects = len([c[5] for c in boxes if c[5] == 0 or c[5] == 15 or c[5] == 16])
-                if time.time() - self.save_time > self.delay and num_relevant_objects > 0:
-                    self.save_frame(frame)
+                    num_relevant_objects = len([c[5] for c in boxes if c[5] == 0 or c[5] == 15 or c[5] == 16])
+                    if time.time() - self.save_time > self.delay and num_relevant_objects > 0:
+                        self.save_frame(frame)
+                else:
+                    if time.time() - self.save_time > self.delay:
+                        self.save_frame(frame)
 
     def run_pi_camera(self):
         print("Running PI camera")
@@ -241,6 +247,11 @@ if __name__ == "__main__":
                         dest='delay',
                         default=1.0,
                         help='minimum delay to save a frame again',
+                        required=False)
+    parser.add_argument('--AI',
+                        action='store_true',
+                        default=False,
+                        help='if given, uses tensorflow model to detect people',
                         required=False)
     args = vars(parser.parse_args())
 

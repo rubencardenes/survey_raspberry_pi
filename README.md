@@ -133,6 +133,7 @@ optional arguments:
   -p CAMERA_TYPE  use piCamera
   --area AREA     minimum detected area to save a frame
   --delay DELAY   minimum delay to save a frame again
+  --AI            if given, uses tensorflow model to detect people
 ```
 ## Extra
 

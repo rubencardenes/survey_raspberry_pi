@@ -231,7 +231,7 @@ if __name__ == "__main__":
     parser.add_argument('--AI',
                         action='store_true',
                         default=False,
-                        help='if given uses tensorflow model to detect people',
+                        help='if given, uses tensorflow model to detect people',
                         required=False)
     args = vars(parser.parse_args())
 
