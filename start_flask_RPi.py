@@ -107,15 +107,20 @@ class VideoSendThread(Thread):
                 # cv2.rectangle(frame, (b[0], b[1]), (b[2], b[3]),
                 #              (0, 0, 255), 1)
                 total_area += (b[2] - b[0]) * (b[3] - b[1])
-            if total_area > self.min_area and self.AI:
-                # Start detecting with AI
-                boxes = self.run_ssd_lite_model(frame)
-                frame = draw_bbox(frame, boxes, show_label=True,
-                                         colors=self.colors, classes=self.classes)
+            if total_area > self.min_area:
+                if self.AI:
+                    # Start detecting with AI
+                    boxes = self.run_ssd_lite_model(frame)
+                    frame = draw_bbox(frame, boxes, show_label=True,
+                                             colors=self.colors, classes=self.classes)
 
-                num_persons = len([c[5] for c in boxes if c[5] == 0])
-                if time.time() - self.save_time > self.delay and num_persons > 0:
-                    self.save_frame(frame)
+                    num_persons = len([c[5] for c in boxes if c[5] == 0])
+                    if time.time() - self.save_time > self.delay and num_persons > 0:
+                        self.save_frame(frame)
+                else:
+                    if time.time() - self.save_time > self.delay:
+                        self.save_frame(frame)
+
 
     def run(self):
         try:
@@ -223,7 +228,11 @@ if __name__ == "__main__":
                         default=2.0,
                         help='minimum delay to save a frame again',
                         required=False)
-
+    parser.add_argument('--AI',
+                        action='store_true',
+                        default=False,
+                        help='if given uses tensorflow model to detect people',
+                        required=False)
     args = vars(parser.parse_args())
 
     host = args['host']
@@ -231,7 +240,7 @@ if __name__ == "__main__":
 
     threads = []
 
-    newthread = VideoSendThread(container, min_area=args['area'], delay=args['delay'])
+    newthread = VideoSendThread(container, min_area=args['area'], delay=args['delay'], AI=args['AI'])
     newthread.start()
     threads.append(newthread)
 
